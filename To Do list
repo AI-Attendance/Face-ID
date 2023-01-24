@@ -1,0 +1,26 @@
+write comments on project code for discreption and highlight what can be optimised also documentation. 
+
+openvino, freeze and load model. 
+
+increase face size not by black padding but by increase the perimeter of face 
+(p1 - 5, p2 + 5), but more background will be included. 
+
+Take all variables ( face threshold , yolo model, deep face model, ... etc) and load them from config.txt file.
+add comment escape, what values to choose, how to parse it correctly. 
+
+Liveness detection. 
+
+Is score Face needed? (Frontal, better lightning, etc). 
+
+If we will keep pictures of users make them encrypted. 
+
+push project to github. 
+
+Register directly form camera program:
+button to capture frame.
+preview picture, in box, save button.
+build button (or rebuild)
+optimise and build button (for given threshold, delete very close picture and rebuild)
+Add photo from directory 
+
+Use nvidia gpu as it will be available at lab.
