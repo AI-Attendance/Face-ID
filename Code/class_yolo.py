@@ -1,9 +1,7 @@
 import torch
 import numpy as np
 from models.experimental import attempt_load
-from utils.datasets import letterbox
-from utils.general import check_img_size, non_max_suppression
-from utils.general import scale_coords
+from utils.general import non_max_suppression
 
 class face_detect:
     def __init__(self, weights=['../Models/yolov7-lite-e.pt'],conf_thres=0.35,
@@ -52,12 +50,6 @@ class face_detect:
         clss = []
         for det in pred:  # detections per image
             if len(det):
-                # Rescale boxes from img_size to im0 size
-                #scale_coords(img.shape[2:], det[:, :4],
-                #             frame.shape, kpt_label=False)
-                #scale_coords(img.shape[2:], det[:, 6:],
-                #             frame.shape, kpt_label=self.kpts, step=3)
-                
                 # to pass it to next stage
                 for i, (*coortens, conf, cls) in enumerate(reversed(det[:, :6])):
                     rectangles.append(np.array(coortens, dtype=int))
