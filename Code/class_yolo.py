@@ -3,9 +3,16 @@ import numpy as np
 from models.experimental import attempt_load
 from utils.general import non_max_suppression
 
+
 class face_detect:
-    def __init__(self, weights=['../Models/yolov7-lite-e.pt'],conf_thres=0.35,
-                 iou_thres=0.45, kpts=5, device='cpu', classes=[0]):
+
+    def __init__(self,
+                 weights=['../Models/yolov7-lite-e.pt'],
+                 conf_thres=0.35,
+                 iou_thres=0.45,
+                 kpts=5,
+                 device='cpu',
+                 classes=[0]):
         """
         yolo face detection
         weights is the pre traind model
@@ -33,15 +40,17 @@ class face_detect:
         # BGR to RGB, to bsx3x416x416
         img = img[:, :, ::-1].transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
-        
+
         img = torch.from_numpy(img).to(torch.float32)  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
         img = img.unsqueeze(0)
         # Inference
         pred = self.model(img)[0]
         # Apply NMS
-        pred = non_max_suppression(pred, self.conf_thres,
-                                   self.iou_thres, classes=self.classes,
+        pred = non_max_suppression(pred,
+                                   self.conf_thres,
+                                   self.iou_thres,
+                                   classes=self.classes,
                                    kpt_label=self.kpts)
         # Process detections
         rectangles = []
@@ -49,12 +58,13 @@ class face_detect:
         confs = []
         clss = []
         for det in pred:  # detections per image
-            if len(det):
-                # to pass it to next stage
-                for i, (*coortens, conf, cls) in enumerate(reversed(det[:, :6])):
-                    rectangles.append(np.array(coortens, dtype=int))
-                    kpts.append(np.array(det[i, 6:], dtype=int))
-                    confs.append(conf.item())
-                    clss.append(int(cls))
+            if len(det) == 0:
+                continue
+            # to pass it to next stage
+            for i, (*coortens, conf, cls) in enumerate(reversed(det[:, :6])):
+                rectangles.append(np.array(coortens, dtype=int))
+                kpts.append(np.array(det[i, 6:], dtype=int))
+                confs.append(conf.item())
+                clss.append(int(cls))
 
         return rectangles, confs, clss, kpts
