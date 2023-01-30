@@ -1,7 +1,5 @@
 from deepface.DeepFace import build_model, represent
 import numpy as np
-from scipy.spatial.distance import cosine
-
 
 class face_recognition:
 
@@ -20,33 +18,18 @@ class face_recognition:
         self.fvecnorms = np.load(
             file='{}/norm_of_fvec.npy'.format(self.path_to_data_base))
 
-        self.multiple_lookup_unknown = {}
-        self.max_no_multiple_lookup = max_no_lookup
-        self.not_found = -1
         self.facemodel = build_model(self.model_name)
         self.face_threshold = face_threshold
-        self.unknown_count = -1
 
     def recog(self,
               objID,
               selected_face,
-              all_IDs,
               align=True,
               detector_backend='dlib',
               enforce_detection=False):
-        if objID not in all_IDs or selected_face.shape[
-                0] == 0 or selected_face.shape[1] == 0:
+        if selected_face.shape[0] == 0 or selected_face.shape[1] == 0:
             return None
-        elif objID not in self.multiple_lookup_unknown:
-            self.multiple_lookup_unknown[objID] = 1
-        else:
-            self.multiple_lookup_unknown[objID] += 1
-            if self.multiple_lookup_unknown[
-                    objID] > self.max_no_multiple_lookup:
-                self.not_found += 1
-                self.multiple_lookup_unknown.pop(objID)
-                return ['not found {}'.format(self.not_found), objID]
-
+        
         face_rep = represent(selected_face,
                              model_name=self.model_name,
                              model=self.facemodel,
@@ -60,9 +43,6 @@ class face_recognition:
         index = res.argmin()
         if res[index] < self.face_threshold:
             return [self.name_vec[index], objID]
-        elif objID[0:3] == 'ID ':
-            self.unknown_count += 1
-            return ['unknown {}'.format(self.unknown_count), objID]
 
     def register(self,
                  name,
