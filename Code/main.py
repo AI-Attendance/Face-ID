@@ -161,23 +161,20 @@ def exitWithHelpUnless(condition: bool) -> None:
     exit()
 
 
-def get_timeout(options: dict) -> None:
+def get_timeout() -> float:
     exitWithHelpUnless(
-        len(sys.argv) >= 2 and sys.argv[1].replace('.', '', 1).isdigit())
-    options[sys.argv[0]] = float(sys.argv[1])
-    del sys.argv[:2]
+        len(sys.argv) >= 1 and sys.argv[0].replace('.', '', 1).isdigit())
+    return float(sys.argv.pop(0))
 
 
-def get_yolos(options: dict) -> None:
-    exitWithHelpUnless(len(sys.argv) >= 2 and sys.argv[1].isdigit())
-    options[sys.argv[0]] = int(sys.argv[1])
-    del sys.argv[:2]
+def get_yolos() -> int:
+    exitWithHelpUnless(len(sys.argv) >= 1 and sys.argv[0].isdigit())
+    return int(sys.argv.pop(0))
 
 
-def get_recogs(options: dict) -> None:
-    exitWithHelpUnless(len(sys.argv) >= 2 and sys.argv[1].isdigit())
-    options[sys.argv[0]] = int(sys.argv[1])
-    del sys.argv[:2]
+def get_recogs() -> int:
+    exitWithHelpUnless(len(sys.argv) >= 1 and sys.argv[0].isdigit())
+    return int(sys.argv.pop(0))
 
 
 if __name__ == '__main__':
@@ -185,12 +182,12 @@ if __name__ == '__main__':
     # send inital frame to set image size
 
     options = {'timeout': 1.5, 'yolos': 1, 'recogs': 1}
-    sys.argv.pop(0)
+    del sys.argv[0]
     while len(sys.argv) > 0:
         exitWithHelpUnless(sys.argv[0].startswith('--'))
-        sys.argv[0] = sys.argv[0][2:]
-        exitWithHelpUnless(sys.argv[0] in options)
-        exec('get_' + sys.argv[0] + '(options)')
+        option = sys.argv.pop(0)[2:]
+        exitWithHelpUnless(option in options)
+        options[option] = exec('get_' + option + '()')
 
     queue_track_recog = Queue()
     queue_recog_track = Queue()
