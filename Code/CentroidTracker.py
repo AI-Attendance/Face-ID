@@ -5,8 +5,8 @@ import numpy as np
 
 
 class CentroidTracker:
-    def __init__(self, maxDisappeared=50, maxDistance=50,
-                 minNeighbor=50):
+
+    def __init__(self, maxDisappeared=50, maxDistance=50, minNeighbor=50):
         # initialize the next unique object ID along with two ordered
         # dictionaries used to keep track of mapping a given object
         # ID to its centroid and number of consecutive frames it has
@@ -28,23 +28,8 @@ class CentroidTracker:
         # store the minimum distance between two neighbor centroids
         # if two objects are closer than minimum one of then is deleted
         self.minNeighbor = minNeighbor
-    
-    def _center_is_rect(self, center, rect, thresh = 10):
-        cX = (rect[0] + rect[2]) / 2.0
-        cY = (rect[1] + rect[3]) / 2.0
-        distance = (cX - center[0]) **2 + (cY - center[1]) ** 2
-        distance = distance ** (0.5)
-        return True if distance < 10 else False
 
-    # TODO better impelementation
-    def rewire_center_rects(self, rects):
-        self.rects.clear()
-        for rect in rects:
-            for ID, center in self.objects.items():
-                if self._center_is_rect(center, rect):
-                    self.rects[ID] = rect
-
-    def register(self, centroid, rect):
+    def register(self, centroid, rect, kpts):
         objectCentroids = [c['center'] for c in self.objects.values()]
         if len(objectCentroids) > 0:
             D_Neighbor = dist.cdist(np.array(objectCentroids),
@@ -55,10 +40,13 @@ class CentroidTracker:
         ID = self.nextObjectID
         # when registering an object we use the next available object
         # ID to store the centroid
-        self.objects[ID] = {'center':centroid, 
-                            'disappeared':0, 
-                            'rect':rect, 
-                            'name':'unknown'}
+        self.objects[ID] = {
+            'center': centroid,
+            'disappeared': 0,
+            'rect': rect,
+            'name': 'unknown',
+            'kpts': kpts
+        }
         self.nextObjectID += 1
 
     def deregister(self, objectID):
@@ -87,7 +75,7 @@ class CentroidTracker:
             res *= 1000
         return l
 
-    def update(self, rects):
+    def update(self, rects, kpts):
         # check to see if the list of input bounding box rectangles
         # is empty
         if len(rects) == 0:
@@ -101,26 +89,29 @@ class CentroidTracker:
         # initialize an array of input centroids for the current frame
         inputCentroids = np.zeros((len(rects), 2), dtype="int")
         rects_center_dict = {}  # {center:rect}
+        kpts_center_dict = {}
 
         # loop over the bounding box rectangles
-        for (i, (startX, startY, endX, endY)) in enumerate(rects):
+        for i, (rect, kpt) in enumerate(zip(rects, kpts)):
             # use the bounding box coordinates to derive the centroid
-            cX = int((startX + endX) / 2.0)
-            cY = int((startY + endY) / 2.0)
+            cX = int((rect[0] + rect[2]) / 2.0)
+            cY = int((rect[1] + rect[3]) / 2.0)
             inputCentroids[i] = (cX, cY)
-            rects_center_dict[self.list_to_number_hash(inputCentroids[i])] = [startX, startY, endX, endY]
-        
+            rects_center_dict[self.list_to_number_hash(
+                inputCentroids[i])] = rect
+            kpts_center_dict[self.list_to_number_hash(inputCentroids[i])] = kpt
+
         # if we are currently not tracking any objects take the input
         # centroids and register each of them
         if len(self.objects) == 0:
             for i in range(0, len(inputCentroids)):
-                self.register(inputCentroids[i], rects[i])
+                self.register(inputCentroids[i], rects[i], kpts[i])
 
         # otherwise, we are currently tracking objects so we need to
         # try to match the input centroids to existing object
         # centroids
         else:
-        # grab the set of object IDs and corresponding centroids
+            # grab the set of object IDs and corresponding centroids
             objectIDs = list(self.objects.keys())
             objectCentroids = [c['center'] for c in self.objects.values()]
 
@@ -167,7 +158,10 @@ class CentroidTracker:
                 # counter
                 objectID = objectIDs[row]
                 self.objects[objectID]['center'] = inputCentroids[col]
-                self.objects[objectID]['rect'] = rects_center_dict[self.list_to_number_hash(inputCentroids[col])]
+                self.objects[objectID]['rect'] = rects_center_dict[
+                    self.list_to_number_hash(inputCentroids[col])]
+                self.objects[objectID]['kpts'] = kpts_center_dict[
+                    self.list_to_number_hash(inputCentroids[col])]
                 self.objects[objectID]['disappeared'] = 0
                 # name is unchanged
 
@@ -192,21 +186,25 @@ class CentroidTracker:
                     # index and increment the disappeared counter
                     objectID = objectIDs[row]
                     self.objects[objectID]['disappeared'] += 1
-                    
+
                     # check to see if the number of consecutive
                     # frames the object has been marked "disappeared"
                     # for warrants deregistering the object
-                    if self.objects[objectID]['disappeared'] > self.maxDisappeared:
+                    if self.objects[objectID][
+                            'disappeared'] > self.maxDisappeared:
                         self.deregister(objectID)
-
 
             # otherwise, if the number of input centroids is greater
             # than the number of existing object centroids we need to
             # register each new input centroid as a trackable object
             else:
                 for col in unusedCols:
-                    self.register(inputCentroids[col], 
-                                  rects_center_dict[self.list_to_number_hash(inputCentroids[col])])
+                    self.register(
+                        inputCentroids[col],
+                        rects_center_dict[self.list_to_number_hash(
+                            inputCentroids[col])],
+                        kpts_center_dict[self.list_to_number_hash(
+                            inputCentroids[col])])
 
         # return the set of trackable objects
         return self.objects

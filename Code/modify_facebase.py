@@ -29,14 +29,18 @@ if __name__ == '__main__':
             # remove them from fvec, namevec, fnorm
             namelst = [n for i, n in enumerate(namevec) if i not in found_indx]
             fveclst = [n for i, n in enumerate(namevec) if i not in found_indx]
-            fnromlst = [n for i, n in enumerate(namevec) if i not in found_indx]
+            fnormlst = [n for i, n in enumerate(namevec) if i not in found_indx]
             namevec = np.array(namelst)
             fvec = np.array(fveclst)
-            fnorm = np.array(fnrom)
+            fnorm = np.array(fnorm)
             print('Done')
 
         elif choise == 'save changes' or choise == '3':
             print('Saving')
+            if namevec.shape[0] == 0:
+                namevec = np.array(['None'])
+                fvec = np.ones((512, )) * 1000
+                fnorm = np.ones((1,)) * 0.001
             np.save(file='facebase/name_of_fvec.npy', arr=namevec)
             np.save(file='facebase/feature_vectors.npy', arr=fvec)
             np.save(file='facebase/norm_of_fvec.npy', arr=fnorm)

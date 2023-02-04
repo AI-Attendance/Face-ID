@@ -1,2 +1,5 @@
 **/__pycache__
 setup.cfg
+Models/*
+Faces\ Pictures/*
+Code/facebase/*
