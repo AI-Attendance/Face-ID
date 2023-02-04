@@ -4,27 +4,27 @@ Realtime face recognition and identification
 Models Location: https://drive.google.com/drive/folders/19Oufui5dnUVPtxUZaFBtzHTdV-cSr8OL?usp=sharing
 
 To add people to db, create a folder named "Faces Pictures" and put it in the same directiry as Models and Code
-inside "Faces Pictures" create folder with person name and put the picture inside
+inside "Faces Pictures" create folder with person name and put the picture inside 
 
-Face-ID
+    Face-ID
   
-  Code
+      Code
   
-  ...
+        ...
   
-  Models
+      Models
   
-  ...
+        ...
   
-  Face Picture
+      Face Picture
   
-    Name1
+        Name1
   
-      photo1.jpg
+          photo1.jpg
   
-      photo2.jpg
+          photo2.jpg
   
-    Name2
+       Name2
   
-      ...
+          ...
       
