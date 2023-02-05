@@ -1,17 +1,17 @@
-# TODO: refactor queues and processes
-from time import time, sleep
-from multiprocessing import Process, Queue, Value
+from time import time
+from multiprocessing import Process, Queue
 from multiprocessing.shared_memory import ShareableList
-from queue import Empty
+
 import cv2
 import numpy as np
+from imutils import rotate
 from class_yolo_openvino import face_detect
 from recognition_openvino import face_recognition
 from tracker import Tracker, Motion_detect
-from imutils import rotate
 
 
-def recog() -> None:
+def recog(shared_object_ids: ShareableList, queue_track_recog: Queue,
+          queue_recog_track: Queue) -> None:
     face_rec = face_recognition()
     face_rec.load_db()
     idx = 0
@@ -19,14 +19,15 @@ def recog() -> None:
     found_before = [None for _ in range(idx_max)]
     give_up_max = 100
     give_up_search = {}
-    print("Done loading face recognition")
+    if __debug__:
+        print("Done loading face recognition")
     while True:
         ret = queue_track_recog.get()
         if ret is None:
             queue_track_recog.put(None)
-            break
+            return
         objID, selected_face = ret
-        if objID in found_before or objID not in lst:
+        if objID in found_before or objID not in shared_object_ids:
             continue
         face_rep = face_rec.recog(selected_face)
         ret = face_rec.search_db(face_rep)
@@ -42,17 +43,18 @@ def recog() -> None:
         if give_up_search[objID] > give_up_max:
             found_before[idx] = objID
             idx = (idx + 1) % 50
-            queue_recog_track.put(['not found', objID])
+            queue_recog_track.put(["not found", objID])
 
 
-def yolo() -> None:
+def yolo(queue_track_yolo: Queue, queue_yolo_track: Queue) -> None:
     fd = face_detect(kpts=3)
-    print('Done loading yolo')
+    if __debug__:
+        print("Done loading yolo")
     while True:
         frame = queue_track_yolo.get()
         if frame is None:
             queue_track_yolo.put(None)
-            break
+            return
         rects, conf, cls, kpts = fd.apply_yolo(frame)
         queue_yolo_track.put([rects, conf, cls, kpts])
 
@@ -81,19 +83,14 @@ def preprocess_face(frame, rect, kpts):
     return selected_face
 
 
-def track() -> None:
-    # input frame must be 3:4 ratio
-    vid = cv2.VideoCapture(0)
-    ret = False
-    frame = None
-    while not ret:
-        ret, frame = vid.read()
-    frame = cv2.flip(frame, 1)
+def track(shared_object_ids: ShareableList, queue_display_track: Queue,
+          queue_track_display: Queue) -> None:
     skip_timer = 0  # time() + 10
     skip_frames_time = 1 / 20  # max FPS of yolo
     tr = Tracker()
     last_face_seen = 0
     frame_size_yolo = (256, 192)
+    frame = queue_display_track.get()
     frame_size_factor = [
         frame.shape[0] / frame_size_yolo[1],
         frame.shape[1] / frame_size_yolo[0]
@@ -102,14 +99,10 @@ def track() -> None:
     while True:
         rects = []
         kpts = []
-        frame = vid.read()[1]
         last_face_seen += 1
         # motion detection
         # if there is no motion don't send frames for yolo nor face recog
         is_moving = md.moving(frame)
-
-        # Remove if not using selfie cam
-        frame = cv2.flip(frame, 1)
 
         if time() - skip_timer > skip_frames_time:
             skip_timer = time()
@@ -136,26 +129,37 @@ def track() -> None:
 
         # TODO reset the rest of list
         for i, k in enumerate(tr.objects.keys()):
-            lst[i] = k
-        for i in range(len(tr.objects.keys()), len(lst)):
-            lst[i] = None
+            shared_object_ids[i] = k
+        for i in range(len(tr.objects.keys()), len(shared_object_ids)):
+            shared_object_ids[i] = None
 
         if not queue_recog_track.empty():
             name, ID = queue_recog_track.get()
             tr.update_as_known(name, ID)
 
-        # tr.ct.rects contain ids and rectangles
         queue_track_display.put([
             frame, [n['name'] for n in tr.objects.values()],
             [r['rect'] for r in tr.objects.values()],
             [k for k in tr.objects.keys()]
         ])
-    vid.release()
+        frame = queue_display_track.get()
+        if frame is None:
+            return
 
 
 def display() -> None:
+    # input frame must be 3:4 ratio
+    vid = cv2.VideoCapture(0)
+    ret = False
+    frame = None
+    while not ret:
+        ret, frame = vid.read()
     colr = [87, 255, 25]  # [random.randint(0, 255) for _ in range(3)]
     while True:
+        frame = vid.read()[1]
+        # Remove if not using selfie cam
+        frame = cv2.flip(frame, 1)
+        queue_display_track.put(frame)
         frame, names, rects, IDs = queue_track_display.get()
         # draw boxes around faces
         for name, rect, ID in zip(names, rects, IDs):
@@ -168,8 +172,7 @@ def display() -> None:
         cv2.imshow('Test', frame)
         key_press = cv2.waitKey(1)
         if key_press == ord('q'):
-            queue_track_recog.put(None)
-            queue_track_yolo.put(None)
+            vid.release()
             cv2.destroyAllWindows()
             return
 
@@ -204,10 +207,6 @@ def get_recogs() -> int:
 
 if __name__ == '__main__':
     import sys
-
-    # load model and prepare everything
-    # send inital frame to set image size
-
     options = {'yolos': 1, 'recogs': 1}
     del sys.argv[0]
     while len(sys.argv) > 0:
@@ -216,33 +215,45 @@ if __name__ == '__main__':
         exitWithHelpUnless(option in options)
         options[option] = eval('get_' + option + '()')
 
-    # to keep objects ids updated in recognition
-    lst = ShareableList([None for _ in range(10)])
+    # to keep object ids updated in recognition
+    shared_object_ids = ShareableList([None for _ in range(10)])
 
+    queue_track_display = Queue()
+    queue_display_track = Queue()
     queue_track_recog = Queue()
     queue_recog_track = Queue()
-    queue_track_display = Queue()
-    queue_yolo_track = Queue()
     queue_track_yolo = Queue()
-    all_queues = [
-        queue_recog_track, queue_track_display, queue_track_recog,
-        queue_track_yolo, queue_yolo_track
+    queue_yolo_track = Queue()
+
+    track_subprocess = Process(target=track,
+                               args=(shared_object_ids, queue_display_track,
+                                     queue_track_display))
+    yolo_subprocesses = [
+        Process(target=yolo, args=(queue_track_yolo, queue_yolo_track))
+        for _ in range(options['yolos'])
     ]
+    recog_subprocesses = [
+        Process(target=recog,
+                args=(shared_object_ids, queue_track_recog, queue_recog_track))
+        for _ in range(options['recogs'])
+    ]
+    all_subprocesses = [track_subprocess
+                        ] + yolo_subprocesses + recog_subprocesses
+    for subprocess in all_subprocesses:
+        subprocess.start()
 
-    p_track = Process(target=track)
-    p_yolos = [Process(target=yolo) for _ in range(options['yolos'])]
-    p_recogs = [Process(target=recog) for _ in range(options['recogs'])]
-    all_processes = [p_track] + p_yolos + p_recogs
-
-    for process in all_processes:
-        process.start()
-
-    print('Loading ...')
+    if __debug__:
+        print('Loading ...')
     display()
 
-    for process in all_processes:
-        process.join()
-    lst.shm.unlink()
-    for queue in all_queues:
+    shared_object_ids.shm.unlink()
+    for queue in [queue_display_track, queue_track_recog, queue_track_yolo]:
+        queue.put(None)
+    for queue in [
+            queue_display_track, queue_recog_track, queue_track_display,
+            queue_track_recog, queue_track_yolo, queue_yolo_track
+    ]:
         queue.cancel_join_thread()
         queue.close()
+    for subprocess in all_subprocesses:
+        subprocess.join()

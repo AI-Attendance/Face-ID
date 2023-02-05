@@ -1,14 +1,14 @@
 import cv2
-import CentroidTracker
+import centroid_tracker
 import numpy as np
 
 
 class Tracker:
 
     def __init__(self):
-        self.ct = CentroidTracker.CentroidTracker(maxDisappeared=15,
-                                                  maxDistance=50,
-                                                  minNeighbor=50)
+        self.ct = centroid_tracker.CentroidTracker(maxDisappeared=15,
+                                                   maxDistance=50,
+                                                   minNeighbor=50)
         self.objects = {
             0: {
                 'center': [0, 0],
