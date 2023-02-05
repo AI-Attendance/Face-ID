@@ -1,17 +1,14 @@
-from time import time
 from multiprocessing import Process, Queue
 from multiprocessing.shared_memory import ShareableList
 
 import cv2
 import numpy as np
 from imutils import rotate
-from class_yolo_openvino import face_detect
-from recognition_openvino import face_recognition
-from tracker import Tracker, Motion_detect
 
 
 def recog(shared_object_ids: ShareableList, queue_track_recog: Queue,
           queue_recog_track: Queue) -> None:
+    from recognition_openvino import face_recognition
     face_rec = face_recognition()
     face_rec.load_db()
     idx = 0
@@ -47,6 +44,7 @@ def recog(shared_object_ids: ShareableList, queue_track_recog: Queue,
 
 
 def yolo(queue_track_yolo: Queue, queue_yolo_track: Queue) -> None:
+    from class_yolo_openvino import face_detect
     fd = face_detect(kpts=3)
     if __debug__:
         print("Done loading yolo")
@@ -85,6 +83,8 @@ def preprocess_face(frame, rect, kpts):
 
 def track(shared_object_ids: ShareableList, queue_display_track: Queue,
           queue_track_display: Queue) -> None:
+    from time import time
+    from tracker import Tracker, Motion_detect
     skip_timer = 0  # time() + 10
     skip_frames_time = 1 / 20  # max FPS of yolo
     tr = Tracker()
@@ -206,6 +206,9 @@ def get_recogs() -> int:
 
 
 if __name__ == '__main__':
+    import os
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
     import sys
     options = {'yolos': 1, 'recogs': 1}
     del sys.argv[0]
