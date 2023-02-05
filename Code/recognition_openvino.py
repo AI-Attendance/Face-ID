@@ -25,6 +25,11 @@ class face_recognition:
             file='{}/feature_vectors.npy'.format(self.path_to_data_base))
         self.fvecnorms = np.load(
             file='{}/norm_of_fvec.npy'.format(self.path_to_data_base))
+    
+    def prepare_for_new_db(self):
+        self.name_vec = []
+        self.fvec = []
+        self.fvecnorms = []
 
     def recog(self,
               selected_face):
@@ -39,15 +44,28 @@ class face_recognition:
                       align=True)[0][0]
         face_rep = self.facemodel(selected_face)[self.output_layer][0]
         return face_rep    
-    
+
     def search_db(self, face_rep):
         res = 1 - np.abs(
             np.dot(face_rep, self.fvec.T) /
             (self.fvecnorms * np.linalg.norm(face_rep)))
         index = res.argmin()
         if res[index] < self.face_threshold:
-            print(self.name_vec[index], res[index])
             return self.name_vec[index]
         else:
-            print('not found', res[index])
             return None
+    
+    def add_name_to_db(self, name, face_rep):
+        # only used in registering
+        face_norm = np.linalg.norm(face_rep)
+        self.fvec.append(face_rep)
+        self.fvecnorms.append(face_norm)
+        self.name_vec.append(name)
+
+    def save_db(self):
+        np.save(file='{}/name_of_fvec'.format(self.path_to_data_base),
+                arr=np.array(self.name_vec))
+        np.save(file='{}/feature_vectors'.format(self.path_to_data_base),
+                arr=np.array(self.fvec))
+        np.save(file='{}/norm_of_fvec'.format(self.path_to_data_base),
+                arr=np.array(self.fvecnorms))
