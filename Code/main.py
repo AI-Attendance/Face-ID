@@ -57,30 +57,6 @@ def yolo(queue_track_yolo: Queue, queue_yolo_track: Queue) -> None:
         queue_yolo_track.put([rects, conf, cls, kpts])
 
 
-# NOTE should we keep it in track as it is the fastest?
-def preprocess_face(frame, rect, kpts):
-    # crop
-    selected_face = frame[rect[1]:rect[3], rect[0]:rect[2]]
-    # align
-    right_eye, left_eye, nose = kpts[0:3]
-    middle_eye = (left_eye + right_eye) / 2
-    angle = middle_eye - nose  # deltaX, deltaY
-    angle = -np.arctan(angle[0] / angle[1]) * 180 / np.pi
-    padY = int((rect[3] - rect[1]) * 0.02)
-    padX = int((rect[2] - rect[0]) * 0.02)
-    # instead of black padding, pad with the background then
-    # resize to model input size
-    rect[0] = rect[0] - padY if rect[0] - padY > 0 else 0
-    rect[1] = rect[1] - padX if rect[1] - padX > 0 else 0
-    rect[2] = rect[2] + padY if rect[2] + padY < frame.shape[
-        1] else frame.shape[1]
-    rect[3] = rect[3] + padX if rect[3] + padX < frame.shape[
-        0] else frame.shape[0]
-    selected_face = rotate(frame[rect[1]:rect[3], rect[0]:rect[2]],
-                           angle=angle)
-    return selected_face
-
-
 def track(shared_object_ids: ShareableList, queue_display_track: Queue,
           queue_track_display: Queue) -> None:
     from time import time
@@ -152,6 +128,7 @@ def display() -> None:
     vid = cv2.VideoCapture(0)
     ret = False
     frame = None
+    img_reshape = register_handler()
     while not ret:
         ret, frame = vid.read()
     colr = [87, 255, 25]  # [random.randint(0, 255) for _ in range(3)]
@@ -159,6 +136,7 @@ def display() -> None:
         frame = vid.read()[1]
         # Remove if not using selfie cam
         frame = cv2.flip(frame, 1)
+        frame = img_reshape.resize_picture(frame)
         queue_display_track.put(frame)
         frame, names, rects, IDs = queue_track_display.get()
         # draw boxes around faces

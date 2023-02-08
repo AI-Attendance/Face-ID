@@ -1,7 +1,5 @@
-import cv2
 import centroid_tracker
 import numpy as np
-
 
 class Tracker:
 
@@ -50,23 +48,3 @@ class Tracker:
                 rects.append(objdict['rect'])
                 kpts.append(objdict['kpts'])
         return IDs, rects, kpts
-
-
-class Motion_detect:
-
-    def __init__(self, frame, past_frames=5):
-        last_frame = cv2.cvtColor(cv2.resize(frame, (160, 120)),
-                                  cv2.COLOR_BGR2GRAY)
-        last_frame = cv2.GaussianBlur(last_frame, (21, 21), 0)
-        self.lsts = [last_frame for _ in range(past_frames)]
-
-    def moving(self, frame):
-        mframe = cv2.cvtColor(cv2.resize(frame, (160, 120)),
-                              cv2.COLOR_BGR2GRAY)
-        mframe = cv2.GaussianBlur(mframe, (21, 21), 0)
-        diff = cv2.absdiff(mframe, self.lsts[0])
-        diff = cv2.threshold(diff, 10, 255, cv2.THRESH_BINARY)[1]
-        is_moving = np.sum(np.abs(diff)) > 0
-        self.lsts.pop(0)
-        self.lsts.append(mframe)
-        return is_moving
