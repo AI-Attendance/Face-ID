@@ -1,12 +1,11 @@
 from multiprocessing import Process, Queue
 import cv2
-from class_yolo_openvino import face_detect
-from recognition_openvino import face_recognition
-from helping_func_class import register_handler, preprocess_face
 from tqdm import tqdm
 import numpy as np
 
+
 def read_picture() -> None:
+    from helping_func_class import register_handler
     # get pictures, names
     # resize to 640*480
     rh = register_handler()
@@ -19,7 +18,10 @@ def read_picture() -> None:
         # Resize depends on the distance needed to detect faces and on
         # processing speed
 
+
 def yolo() -> None:
+    from class_yolo_openvino import face_detect
+    from helping_func_class import preprocess_face
     fd = face_detect(kpts=5)
     number_of_pictures = queue_yolo.get()
     for i in range(number_of_pictures):
@@ -34,7 +36,9 @@ def yolo() -> None:
         selected_face = preprocess_face(org_frame, rects[0], kpts[0])
         queue_register.put([name, selected_face])
 
+
 def register() -> None:
+    from recognition_openvino import face_recognition
     face_rec = face_recognition()
     face_rec.prepare_for_new_db()
     number_of_pictures = queue_register.get()
@@ -48,7 +52,11 @@ def register() -> None:
     face_rec.save_db()
     print('Done')
 
+
 if __name__ == '__main__':
+    import os
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
     queue_register = Queue()
     queue_yolo = Queue()
     all_queues = [queue_register, queue_yolo]

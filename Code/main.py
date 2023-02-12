@@ -60,7 +60,8 @@ def yolo(queue_track_yolo: Queue, queue_yolo_track: Queue) -> None:
 def track(shared_object_ids: ShareableList, queue_display_track: Queue,
           queue_track_display: Queue) -> None:
     from time import time
-    from tracker import Tracker, Motion_detect
+    from tracker import Tracker
+    from helping_func_class import preprocess_face, Motion_detect
     skip_timer = 0  # time() + 10
     skip_frames_time = 1 / 20  # max FPS of yolo
     tr = Tracker()
@@ -124,6 +125,7 @@ def track(shared_object_ids: ShareableList, queue_display_track: Queue,
 
 
 def display() -> None:
+    from helping_func_class import register_handler
     # input frame must be 3:4 ratio
     vid = cv2.VideoCapture(0)
     ret = False
